@@ -1,0 +1,135 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background-color: #050505;
+  color: #ffffff;
+  font-family: 'Press Start 2P', 'VT323', monospace, sans-serif;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  overflow: hidden;
+  user-select: none;
+}
+
+#game-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100vh;
+  padding: 10px;
+}
+
+#screen-wrapper {
+  position: relative;
+  width: 800px;
+  height: 640px;
+  max-width: 100vw;
+  max-height: 100vh;
+  box-shadow: 0 0 35px rgba(255, 255, 255, 0.08), 0 0 10px rgba(255, 215, 0, 0.15);
+  border: 4px solid #ffffff;
+  background-color: #000000;
+  image-rendering: pixelated;
+}
+
+canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  background-color: #000000;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* Оверлеи */
+.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.92);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+  transition: opacity 0.2s ease;
+}
+
+.overlay.hidden {
+  display: none;
+  pointer-events: none;
+}
+
+.overlay-box {
+  border: 4px solid #ffffff;
+  padding: 30px 40px;
+  background: #000000;
+  text-align: center;
+  max-width: 90%;
+  box-shadow: inset 0 0 15px rgba(255, 255, 0, 0.2);
+}
+
+.glitch-title {
+  color: #ffff00;
+  font-size: 24px;
+  letter-spacing: 2px;
+  margin-bottom: 12px;
+  text-shadow: 2px 2px #ff0055, -2px -2px #00ffff;
+}
+
+.subtitle {
+  color: #ff9900;
+  font-size: 14px;
+  margin-bottom: 25px;
+  letter-spacing: 1px;
+}
+
+.instructions {
+  font-size: 11px;
+  line-height: 2.2;
+  color: #cccccc;
+  margin-bottom: 30px;
+  text-align: left;
+}
+
+.key {
+  color: #ffff00;
+  background: #222222;
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid #555555;
+  display: inline-block;
+}
+
+.btn {
+  font-family: inherit;
+  font-size: 14px;
+  background-color: #000000;
+  color: #ffffff;
+  border: 3px solid #ff9900;
+  padding: 12px 24px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+  text-transform: uppercase;
+}
+
+.btn:hover {
+  background-color: #ff9900;
+  color: #000000;
+  box-shadow: 0 0 15px #ff9900;
+  transform: scale(1.05);
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
