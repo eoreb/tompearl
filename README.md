@@ -59,8 +59,9 @@ tompearl/
 ├── index.html                           # Главный HTML-файл игры
 ├── style.css                            # Стили Undertale
 ├── README.md                            # Документация
-├── hi-my-name-is-tom-pearl.mp3          # Голос интро ("Hi, my name is Tom Pearl...")
-├── Yara Yara Ya Phonk (Slowed).mp3      # Фонк-саундтрек боевой фазы
+├── sounds/
+│   ├── hi-my-name-is-tom-pearl.mp3      # Голос интро ("Hi, my name is Tom Pearl...")
+│   └── Yara Yara Ya Phonk (Slowed).mp3  # Фонк-саундтрек боевой фазы
 ├── sprites/
 │   ├── tom.jpeg                         # Портрет Тома Перла (босс)
 │   └── damage_5_0.png                   # Спрайт урона «5.0»

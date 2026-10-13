@@ -4,11 +4,11 @@ class AudioManager {
     this.ctx = null;
     this.isMuted = false;
     
-    // Аудио элементы для треков пользователя
-    this.introAudio = new Audio('hi-my-name-is-tom-pearl.mp3');
+    // Аудио элементы для треков пользователя из папки sounds/
+    this.introAudio = new Audio('sounds/hi-my-name-is-tom-pearl.mp3');
     this.introAudio.preload = 'auto';
 
-    this.battleAudio = new Audio(encodeURI('Yara Yara Ya Phonk (Slowed).mp3'));
+    this.battleAudio = new Audio(encodeURI('sounds/Yara Yara Ya Phonk (Slowed).mp3'));
     this.battleAudio.preload = 'auto';
     this.battleAudio.loop = true;
 
