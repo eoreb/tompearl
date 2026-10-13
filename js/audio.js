@@ -30,12 +30,21 @@ class AudioManager {
 
   playIntro() {
     this.initContext();
-    this.stopBattle();
     this.introAudio.currentTime = 0;
     this.introAudio.muted = this.isMuted;
-    const promise = this.introAudio.play();
-    if (promise !== undefined) {
-      promise.catch(err => console.log('Intro play blocked:', err));
+    this.introAudio.volume = 1.0;
+    const p1 = this.introAudio.play();
+    if (p1 !== undefined) {
+      p1.catch(err => console.log('Intro play blocked:', err));
+    }
+
+    // Музыка фонка включается сразу без задержки
+    this.battleAudio.currentTime = 0;
+    this.battleAudio.muted = this.isMuted;
+    this.battleAudio.volume = 0.7;
+    const p2 = this.battleAudio.play();
+    if (p2 !== undefined) {
+      p2.catch(err => console.log('Battle music play blocked:', err));
     }
   }
 
@@ -46,14 +55,17 @@ class AudioManager {
     } catch (e) {}
   }
 
-  playBattle() {
+  playBattle(forceRestart = false) {
     this.initContext();
     this.stopIntro();
-    this.battleAudio.currentTime = 0;
     this.battleAudio.muted = this.isMuted;
-    const promise = this.battleAudio.play();
-    if (promise !== undefined) {
-      promise.catch(err => console.log('Battle music play blocked:', err));
+    this.battleAudio.volume = 1.0;
+    if (forceRestart || this.battleAudio.paused) {
+      this.battleAudio.currentTime = 0;
+      const promise = this.battleAudio.play();
+      if (promise !== undefined) {
+        promise.catch(err => console.log('Battle music play blocked:', err));
+      }
     }
   }
 

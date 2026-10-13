@@ -66,15 +66,22 @@ class Game {
         console.log('Audio muted:', muted);
       }
 
-      if (e.code === 'KeyR' || e.key === 'r' || e.key === 'R' || e.key === 'к' || e.key === 'К') {
-        if (this.state === GameState.GAMEOVER || this.state === GameState.VICTORY) {
-          this.startBattleDirectly();
+      if (this.state === GameState.START) {
+        if (e.code === 'Enter' || e.code === 'Space' || e.code === 'KeyZ') {
+          const startBtn = document.getElementById('start-btn');
+          if (startBtn) startBtn.click();
         }
       }
 
-      // Пропуск диалога на Z или Пробел
+      if (e.code === 'KeyR' || e.key === 'r' || e.key === 'R' || e.key === 'к' || e.key === 'К') {
+        if (this.state === GameState.GAMEOVER || this.state === GameState.VICTORY) {
+          this.startBattleDirectly(true);
+        }
+      }
+
+      // Пропуск диалога на Z, Пробел или Enter
       if (this.state === GameState.INTRO) {
-        if (e.code === 'KeyZ' || e.code === 'Space' || e.key === 'z' || e.key === 'Z' || e.key === 'я' || e.key === 'Я') {
+        if (e.code === 'KeyZ' || e.code === 'Space' || e.code === 'Enter' || e.key === 'z' || e.key === 'Z' || e.key === 'я' || e.key === 'Я' || e.key === 'Enter') {
           this.advanceIntro();
         }
       }
@@ -83,6 +90,13 @@ class Game {
     window.addEventListener('keyup', (e) => {
       this.keys[e.code] = false;
       this.keys[e.key] = false;
+    });
+
+    // Клик по экрану для промотки интро
+    this.canvas.addEventListener('click', () => {
+      if (this.state === GameState.INTRO) {
+        this.advanceIntro();
+      }
     });
 
     // Кнопка старта
@@ -118,11 +132,11 @@ class Game {
     const fullLine = this.introDialogue[this.currentLineIndex];
     if (this.displayedText.length < fullLine.length) {
       this.displayedText = fullLine;
-      this.linePauseTimer = 1.0;
+      this.linePauseTimer = 0;
       return;
     }
 
-    // Иначе перейти к следующей строке или сразу в бой
+    // Иначе сразу перейти к следующей строке или сразу в бой
     this.currentLineIndex++;
     if (this.currentLineIndex < this.introDialogue.length) {
       this.displayedText = "";
@@ -133,7 +147,7 @@ class Game {
     }
   }
 
-  startBattleDirectly() {
+  startBattleDirectly(isRestart = false) {
     this.state = GameState.BATTLE;
     this.player.reset();
     this.boss.reset();
@@ -141,7 +155,7 @@ class Game {
     this.battleTimer = 0;
     this.totalBulletsFired = 0;
 
-    window.audioManager.playBattle();
+    window.audioManager.playBattle(isRestart);
   }
 
   togglePause() {
@@ -226,7 +240,7 @@ class Game {
       }
     } else {
       this.linePauseTimer += dt;
-      if (this.linePauseTimer >= 2.5) {
+      if (this.linePauseTimer >= 1.2) {
         this.linePauseTimer = 0;
         this.currentLineIndex++;
         if (this.currentLineIndex < this.introDialogue.length) {
