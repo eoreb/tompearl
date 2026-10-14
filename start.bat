@@ -2,26 +2,16 @@
 chcp 65001 >nul
 title Fight Tom Pearl (Undertale Edition)
 
-echo ========================================================
-echo   Fight Tom Pearl (Undertale Edition) - Windows Launcher
-echo ========================================================
-
 cd /d "%~dp0"
 
-where python >nul 2>nul
-if %ERRORLEVEL% EQU 0 (
-    python start.py
-    goto end
+if exist ".venv\Scripts\python.exe" (
+    ".venv\Scripts\python.exe" main.py %*
+    exit /b %errorlevel%
 )
 
-where py >nul 2>nul
-if %ERRORLEVEL% EQU 0 (
-    py start.py
-    goto end
+python start.py %*
+if %errorlevel% neq 0 (
+    echo.
+    echo Ошибка при запуске игры.
+    pause
 )
-
-echo [ПРЕДУПРЕЖДЕНИЕ] Python не найден в системе.
-echo Открытие index.html напрямую в браузере...
-start "" "index.html"
-
-:end

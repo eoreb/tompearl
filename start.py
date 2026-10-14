@@ -1,70 +1,52 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Fight Tom Pearl (Undertale Edition)
-Кроссплатформенный запуск для Windows, Linux и macOS.
+Универсальный лаунчер для Fight Tom Pearl (Windows / Linux / macOS).
+Автоматически проверяет наличие pygame-ce и запускает нативную игру в отдельном окне.
 """
 
 import sys
 import os
-import socket
-import threading
-import webbrowser
-from http.server import SimpleHTTPRequestHandler, HTTPServer
-
-def find_free_port(start_port=8080):
-    port = start_port
-    while True:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            if s.connect_ex(('127.0.0.1', port)) != 0:
-                return port
-            port += 1
+import subprocess
 
 def main():
-    # Переход в директорию скрипта
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    os.chdir(script_dir)
+    game_dir = os.path.dirname(os.path.abspath(__file__))
+    os.chdir(game_dir)
 
-    port = find_free_port(8080)
-    url = f"http://localhost:{port}"
+    # 1. Проверяем, установлен ли pygame в текущем интерпретаторе
+    try:
+        import pygame
+        # Запускаем игру напрямую
+        subprocess.run([sys.executable, "main.py"] + sys.argv[1:])
+        return
+    except ImportError:
+        pass
 
-    print("=" * 55)
+    # 2. Проверяем наличие виртуального окружения .venv
+    venv_py = os.path.join(game_dir, ".venv", "Scripts", "python.exe") if sys.platform == "win32" \
+        else os.path.join(game_dir, ".venv", "bin", "python")
+
+    if os.path.exists(venv_py):
+        subprocess.run([venv_py, "main.py"] + sys.argv[1:])
+        return
+
+    # 3. Если ничего нет, автоматически разворачиваем .venv на первом запуске
+    print("=" * 60)
     print("  FIGHT TOM PEARL (Undertale Edition)")
-    print(f"  ОС: {sys.platform} | Python {sys.version.split()[0]}")
-    print(f"  Запуск сервера: {url}")
-    print("  Для выхода нажмите Ctrl + C")
-    print("=" * 55)
-
-    class GameHTTPHandler(SimpleHTTPRequestHandler):
-        def end_headers(self):
-            # Отключение кэширования для всегда свежей версии игры
-            self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
-            super().end_headers()
-
-        def log_message(self, format, *args):
-            # Подавление лишнего спама запросов в консоль
-            pass
-
-    httpd = HTTPServer(('127.0.0.1', port), GameHTTPHandler)
-
-    # Автоматическое открытие в браузере (работает в Windows, Linux и macOS)
-    def open_browser():
-        try:
-            webbrowser.open(url)
-        except Exception as e:
-            print(f"Не удалось открыть браузер автоматически: {e}")
-            print(f"Откройте ссылку вручную: {url}")
-
-    timer = threading.Timer(0.5, open_browser)
-    timer.daemon = True
-    timer.start()
+    print("  Первый запуск: настройка окружения (установка pygame-ce)...")
+    print("=" * 60)
 
     try:
-        httpd.serve_forever()
-    except KeyboardInterrupt:
-        print("\nСервер остановлен. До связи, Вась!")
-    finally:
-        httpd.server_close()
+        subprocess.run([sys.executable, "-m", "venv", ".venv"], check=True)
+        pip_bin = os.path.join(game_dir, ".venv", "Scripts", "pip.exe") if sys.platform == "win32" \
+            else os.path.join(game_dir, ".venv", "bin", "pip")
+        subprocess.run([pip_bin, "install", "-r", "requirements.txt"], check=True)
+        print("Настройка завершена! Запуск игры...")
+        subprocess.run([venv_py, "main.py"] + sys.argv[1:])
+    except Exception as e:
+        print(f"Ошибка автоматической настройки: {e}")
+        print("Попробуйте вручную запустить: pip install -r requirements.txt && python main.py")
+        input("Нажмите Enter для выхода...")
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
