@@ -1,6 +1,8 @@
 # main.py - Главный координатор игры «Fight Tom Pearl» (Pygame-CE Edition)
 import sys
 import os
+import math
+import random
 import pygame
 from audio import audio_manager
 from player import Player
@@ -452,7 +454,6 @@ class Game:
         shake_y = 0
         if self.attack_manager.shake_amount > 0:
             s = self.attack_manager.shake_amount
-            import random
             shake_x = int((random.random() - 0.5) * s)
             shake_y = int((random.random() - 0.5) * s)
 

@@ -2,6 +2,7 @@
 import math
 import struct
 import os
+import random
 import pygame
 
 from utils import get_asset_path
@@ -73,7 +74,6 @@ class AudioManager:
             return None
 
     def _synth_noise(self, duration=0.25, volume=0.3):
-        import random
         sr = 44100
         n = int(sr * duration)
         buf = bytearray()
