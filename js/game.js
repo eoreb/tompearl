@@ -8,11 +8,63 @@ const GameState = {
   VICTORY: 'VICTORY'
 };
 
+const Difficulties = {
+  EASY: {
+    key: 'EASY',
+    name: 'ЛЕГКО',
+    sub: 'ЧИЛЛ',
+    playerHp: 120,
+    playerSpeed: 6.0,
+    invulnerableDuration: 0.9,
+    bulletDamage: 7,
+    bossMaxHp: 800,
+    speedMultiplier: 0.8,
+    cooldownMultiplier: 1.25,
+    healInterval: 25,
+    healAmount: 25,
+    desc: 'Больше HP (120), щедрая неуязвимость, замедленные атаки и хилки.'
+  },
+  NORMAL: {
+    key: 'NORMAL',
+    name: 'КАНОН',
+    sub: '92 HP',
+    playerHp: 92,
+    playerSpeed: 5.8,
+    invulnerableDuration: 0.65,
+    bulletDamage: 5,
+    bossMaxHp: 1000,
+    speedMultiplier: 1.0,
+    cooldownMultiplier: 1.0,
+    healInterval: 40,
+    healAmount: 20,
+    desc: 'Каноничный баланс Undertale: 92 HP, урон 5.0, честные тайминги.'
+  },
+  HARD: {
+    key: 'HARD',
+    name: 'ХАРДКОР',
+    sub: 'АУРА 5.0',
+    playerHp: 50,
+    playerSpeed: 5.5,
+    invulnerableDuration: 0.4,
+    bulletDamage: 4,
+    bossMaxHp: 1200,
+    speedMultiplier: 1.22,
+    cooldownMultiplier: 0.85,
+    healInterval: 0,
+    healAmount: 0,
+    desc: '50 HP, бешеные атаки, минимум неуязвимости. Настоящий ад!'
+  }
+};
+
 class Game {
   constructor() {
     this.canvas = document.getElementById('gameCanvas');
     this.ctx = this.canvas.getContext('2d');
     this.ctx.imageSmoothingEnabled = false;
+
+    // Параметры сложности
+    this.difficultyKey = 'NORMAL';
+    this.difficulty = Difficulties.NORMAL;
 
     // Параметры Battle Box
     this.arena = {
@@ -51,6 +103,26 @@ class Game {
     this.initEvents();
   }
 
+  setDifficulty(key) {
+    if (!Difficulties[key]) return;
+    this.difficultyKey = key;
+    this.difficulty = Difficulties[key];
+
+    // Обновление активной кнопки на UI
+    document.querySelectorAll('.diff-btn').forEach(btn => {
+      if (btn.getAttribute('data-diff') === key) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+
+    const descEl = document.getElementById('diff-desc');
+    if (descEl) {
+      descEl.textContent = this.difficulty.desc;
+    }
+  }
+
   initEvents() {
     window.addEventListener('keydown', (e) => {
       this.keys[e.code] = true;
@@ -67,6 +139,23 @@ class Game {
       }
 
       if (this.state === GameState.START) {
+        // Переключение сложности клавишами 1, 2, 3 или стрелками
+        if (e.code === 'Digit1' || e.key === '1') {
+          this.setDifficulty('EASY');
+        } else if (e.code === 'Digit2' || e.key === '2') {
+          this.setDifficulty('NORMAL');
+        } else if (e.code === 'Digit3' || e.key === '3') {
+          this.setDifficulty('HARD');
+        } else if (e.code === 'ArrowLeft' || e.key === 'ArrowLeft' || e.code === 'KeyA') {
+          const order = ['EASY', 'NORMAL', 'HARD'];
+          const idx = order.indexOf(this.difficultyKey);
+          this.setDifficulty(order[(idx + 2) % 3]);
+        } else if (e.code === 'ArrowRight' || e.key === 'ArrowRight' || e.code === 'KeyD') {
+          const order = ['EASY', 'NORMAL', 'HARD'];
+          const idx = order.indexOf(this.difficultyKey);
+          this.setDifficulty(order[(idx + 1) % 3]);
+        }
+
         if (e.code === 'Enter' || e.code === 'Space' || e.code === 'KeyZ') {
           const startBtn = document.getElementById('start-btn');
           if (startBtn) startBtn.click();
@@ -90,6 +179,14 @@ class Game {
     window.addEventListener('keyup', (e) => {
       this.keys[e.code] = false;
       this.keys[e.key] = false;
+    });
+
+    // Клик по кнопкам выбора сложности
+    document.querySelectorAll('.diff-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const diff = btn.getAttribute('data-diff');
+        this.setDifficulty(diff);
+      });
     });
 
     // Клик по экрану для промотки интро
@@ -149,9 +246,9 @@ class Game {
 
   startBattleDirectly(isRestart = false) {
     this.state = GameState.BATTLE;
-    this.player.reset();
-    this.boss.reset();
-    this.attackManager.reset();
+    this.player.reset(this.difficulty);
+    this.boss.reset(this.difficulty);
+    this.attackManager.reset(this.difficulty);
     this.battleTimer = 0;
     this.totalBulletsFired = 0;
 
@@ -433,13 +530,20 @@ class Game {
     this.ctx.fillStyle = '#ffffff';
     this.ctx.fillText('YOU   LV 19', this.arena.x, hudY);
 
+    // Бейдж сложности
+    const diffColor = this.difficultyKey === 'EASY' ? '#00ff66' : this.difficultyKey === 'HARD' ? '#ff0055' : '#ffcc00';
+    this.ctx.font = '9px "Press Start 2P", monospace';
+    this.ctx.fillStyle = diffColor;
+    this.ctx.fillText(`[${this.difficulty.name}]`, this.arena.x + 130, hudY);
+
     // Метка HP
     this.ctx.font = '12px "Press Start 2P", monospace';
-    this.ctx.fillText('HP', this.arena.x + 180, hudY);
+    this.ctx.fillStyle = '#ffffff';
+    this.ctx.fillText('HP', this.arena.x + 225, hudY);
 
     // Полоска здоровья
-    const hpBarX = this.arena.x + 215;
-    const hpBarW = 120;
+    const hpBarX = this.arena.x + 255;
+    const hpBarW = 105;
     const hpBarH = 14;
 
     this.ctx.fillStyle = '#c00000';
@@ -451,7 +555,7 @@ class Game {
 
     // Цифры здоровья
     this.ctx.fillStyle = '#ffffff';
-    this.ctx.fillText(`${this.player.hp} / ${this.player.maxHp}`, hpBarX + hpBarW + 15, hudY);
+    this.ctx.fillText(`${this.player.hp} / ${this.player.maxHp}`, hpBarX + hpBarW + 12, hudY);
 
     // Подсказка управления
     this.ctx.font = '9px "Press Start 2P", monospace';
@@ -468,12 +572,22 @@ class Game {
 
     this.ctx.fillStyle = '#ffffff';
     this.ctx.font = '32px "Press Start 2P", monospace';
-    this.ctx.fillText('GAME OVER', this.canvas.width / 2, 220);
+    this.ctx.fillText('GAME OVER', this.canvas.width / 2, 215);
+
+    const diffColor = this.difficultyKey === 'EASY' ? '#00ff66' : this.difficultyKey === 'HARD' ? '#ff0055' : '#ffcc00';
+    this.ctx.font = '10px "Press Start 2P", monospace';
+    this.ctx.fillStyle = diffColor;
+    this.ctx.fillText(`[ СЛОЖНОСТЬ: ${this.difficulty.name} - ${this.difficulty.sub} ]`, this.canvas.width / 2, 255);
 
     this.ctx.font = '13px "Press Start 2P", monospace';
     this.ctx.fillStyle = '#cccccc';
-    this.ctx.fillText('Не теряй свой жемчуг...', this.canvas.width / 2, 300);
-    this.ctx.fillText('Тарелка Тома Перла оказалась сильнее.', this.canvas.width / 2, 335);
+    if (this.difficultyKey === 'HARD') {
+      this.ctx.fillText('Аура 5.0 оказалась беспощадной...', this.canvas.width / 2, 305);
+      this.ctx.fillText('Том Перл не оставил шанса.', this.canvas.width / 2, 340);
+    } else {
+      this.ctx.fillText('Не теряй свой жемчуг...', this.canvas.width / 2, 305);
+      this.ctx.fillText('Тарелка Тома Перла оказалась сильнее.', this.canvas.width / 2, 340);
+    }
 
     this.ctx.font = '14px "Press Start 2P", monospace';
     this.ctx.fillStyle = '#ffff00';
@@ -487,13 +601,18 @@ class Game {
 
     this.ctx.fillStyle = '#ffff00';
     this.ctx.font = '28px "Press Start 2P", monospace';
-    this.ctx.fillText('ПОБЕДА!', this.canvas.width / 2, 270);
+    this.ctx.fillText('ПОБЕДА!', this.canvas.width / 2, 260);
+
+    const diffColor = this.difficultyKey === 'EASY' ? '#00ff66' : this.difficultyKey === 'HARD' ? '#ff0055' : '#ffcc00';
+    this.ctx.font = '11px "Press Start 2P", monospace';
+    this.ctx.fillStyle = diffColor;
+    this.ctx.fillText(`СЛОЖНОСТЬ: ${this.difficulty.name} (${this.difficulty.sub})`, this.canvas.width / 2, 298);
 
     this.ctx.fillStyle = '#ffffff';
     this.ctx.font = '13px "Press Start 2P", monospace';
-    this.ctx.fillText('Том Перл повержен!', this.canvas.width / 2, 330);
-    this.ctx.fillText(`Время битвы: ${this.battleTimer.toFixed(1)} сек`, this.canvas.width / 2, 365);
-    this.ctx.fillText(`Оставшееся HP: ${this.player.hp} / ${this.player.maxHp}`, this.canvas.width / 2, 400);
+    this.ctx.fillText('Том Перл повержен!', this.canvas.width / 2, 335);
+    this.ctx.fillText(`Время битвы: ${this.battleTimer.toFixed(1)} сек`, this.canvas.width / 2, 370);
+    this.ctx.fillText(`Оставшееся HP: ${this.player.hp} / ${this.player.maxHp}`, this.canvas.width / 2, 405);
 
     this.ctx.font = '14px "Press Start 2P", monospace';
     this.ctx.fillStyle = '#ff9900';

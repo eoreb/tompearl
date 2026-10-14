@@ -16,9 +16,10 @@ class Boss {
     this.reset();
   }
 
-  reset() {
-    this.maxHp = 1000;
-    this.hp = 1000;
+  reset(difficulty = null) {
+    const diff = difficulty || { bossMaxHp: 1000 };
+    this.maxHp = diff.bossMaxHp || 1000;
+    this.hp = this.maxHp;
     this.width = 200;
     this.height = 200;
     this.baseX = this.canvasWidth / 2;
@@ -62,19 +63,32 @@ class Boss {
       return;
     }
 
-    // Проверка смены фаз
-    if (this.currentPhase === 1 && this.hp <= 750) {
+    // Проверка смены фаз (пропорционально максимальному HP)
+    const p2Threshold = this.maxHp * 0.75;
+    const p3Threshold = this.maxHp * 0.50;
+    const p4Threshold = this.maxHp * 0.20;
+
+    if (this.currentPhase === 1 && this.hp <= p2Threshold) {
       this.currentPhase = 2;
       this.speechBubble = { text: "Is that all?\nTaste this plate!", timer: 3.2 };
       this.hitFlashTimer = 0.25;
-    } else if (this.currentPhase === 2 && this.hp <= 500) {
+      if (window.game && window.game.attackManager) {
+        window.game.attackManager.onPhaseChange(2);
+      }
+    } else if (this.currentPhase === 2 && this.hp <= p3Threshold) {
       this.currentPhase = 3;
       this.speechBubble = { text: "Aura 5.0 kicking in!\nFeel the phonk!", timer: 3.2 };
       this.hitFlashTimer = 0.3;
-    } else if (this.currentPhase === 3 && this.hp <= 200) {
+      if (window.game && window.game.attackManager) {
+        window.game.attackManager.onPhaseChange(3);
+      }
+    } else if (this.currentPhase === 3 && this.hp <= p4Threshold) {
       this.currentPhase = 4;
       this.speechBubble = { text: "IMPOSSIBLE!\nMY FINAL PLATE!", timer: 3.6 };
       this.hitFlashTimer = 0.4;
+      if (window.game && window.game.attackManager) {
+        window.game.attackManager.onPhaseChange(4);
+      }
     }
 
     // Покачивание под бит (в финальной фазе интенсивнее)
@@ -149,7 +163,8 @@ class Boss {
       bullet.y + bullet.height > top &&
       bullet.y < bottom
     ) {
-      this.takeDamage(5); // 5.0 урона за выстрел (всего 200 выстрелов на 1000 HP)
+      const dmg = bullet.damage || 5;
+      this.takeDamage(dmg);
       return true;
     }
     return false;

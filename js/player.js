@@ -7,27 +7,50 @@ class Player {
     this.reset();
   }
 
-  reset() {
-    this.size = 18; // размер сердца
+  reset(difficulty = null) {
+    this.size = 18; // визуальный размер сердца
+    this.hitboxRadius = 5.5; // точный Undertale-каноничный радиус хитбокса (диаметр 11px)
     this.x = this.arena.x + this.arena.width / 2;
     this.y = this.arena.y + this.arena.height - 40;
-    this.speed = 5.8;
-    
-    this.hp = 100;
-    this.maxHp = 100;
+
+    const diff = difficulty || { playerHp: 92, playerSpeed: 5.8, invulnerableDuration: 0.65, bulletDamage: 5 };
+    this.speed = diff.playerSpeed || 5.8;
+    this.hp = diff.playerHp || 92;
+    this.maxHp = this.hp;
+    this.bulletDamage = diff.bulletDamage || 5;
     
     this.invulnerableTimer = 0;
-    this.invulnerableDuration = 0.6; // секунды неуязвимости
+    this.invulnerableDuration = diff.invulnerableDuration || 0.65; // секунды неуязвимости
     
     this.bullets = [];
     this.shootCooldown = 0;
     this.shootInterval = 0.18; // интервал между выстрелами
     
     this.damagePopups = [];
+    this.healPopups = [];
 
     // Частицы раскола сердца при Game Over
     this.shards = [];
     this.isDead = false;
+  }
+
+  heal(amount = 20) {
+    if (this.isDead) return;
+    const oldHp = this.hp;
+    this.hp = Math.min(this.maxHp, this.hp + amount);
+    const healed = this.hp - oldHp;
+    if (healed > 0) {
+      this.healPopups.push({
+        x: this.x,
+        y: this.y - 18,
+        text: `+${healed} HP`,
+        vy: -2.2,
+        alpha: 1.0
+      });
+      if (window.audioManager && window.audioManager.playHealSound) {
+        window.audioManager.playHealSound();
+      }
+    }
   }
 
   update(dt, keys, boss, attackManager) {
@@ -53,6 +76,16 @@ class Player {
       dp.alpha -= dt * 1.5;
       if (dp.alpha <= 0) {
         this.damagePopups.splice(i, 1);
+      }
+    }
+
+    // Обновление всплывающего текста лечения
+    for (let i = this.healPopups.length - 1; i >= 0; i--) {
+      const hp = this.healPopups[i];
+      hp.y += hp.vy * 60 * dt;
+      hp.alpha -= dt * 1.2;
+      if (hp.alpha <= 0) {
+        this.healPopups.splice(i, 1);
       }
     }
 
@@ -119,7 +152,8 @@ class Player {
       y: this.y - this.size,
       width: 8,
       height: 18,
-      speed: 18
+      speed: 18,
+      damage: this.bulletDamage || 5
     });
     if (window.audioManager) {
       window.audioManager.playShootSound();
@@ -192,6 +226,20 @@ class Player {
       if (this.damageSprite && this.damageSprite.complete && this.damageSprite.naturalWidth > 0) {
         ctx.drawImage(this.damageSprite, dp.x - w / 2, dp.y - h / 2, w, h);
       }
+      ctx.restore();
+    }
+
+    // Отрисовка всплывающего текста лечения (+HP)
+    for (const hp of this.healPopups) {
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, hp.alpha);
+      ctx.font = '11px "Press Start 2P", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#00ff66';
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 3;
+      ctx.strokeText(hp.text, hp.x, hp.y);
+      ctx.fillText(hp.text, hp.x, hp.y);
       ctx.restore();
     }
 

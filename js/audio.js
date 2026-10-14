@@ -206,6 +206,25 @@ class AudioManager {
       });
     } catch (e) {}
   }
+
+  playHealSound() {
+    if (this.isMuted || !this.ctx) return;
+    try {
+      const notes = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6
+      notes.forEach((freq, i) => {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime + i * 0.05);
+        gain.gain.setValueAtTime(0.12, this.ctx.currentTime + i * 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + i * 0.05 + 0.18);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(this.ctx.currentTime + i * 0.05);
+        osc.stop(this.ctx.currentTime + i * 0.05 + 0.18);
+      });
+    } catch (e) {}
+  }
 }
 
 window.audioManager = new AudioManager();

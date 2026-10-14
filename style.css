@@ -71,7 +71,7 @@ canvas {
 
 .overlay-box {
   border: 4px solid #ffffff;
-  padding: 30px 40px;
+  padding: 22px 30px;
   background: #000000;
   text-align: center;
   max-width: 90%;
@@ -80,43 +80,127 @@ canvas {
 
 .glitch-title {
   color: #ffff00;
-  font-size: 24px;
+  font-size: 22px;
   letter-spacing: 2px;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
   text-shadow: 2px 2px #ff0055, -2px -2px #00ffff;
 }
 
 .subtitle {
   color: #ff9900;
-  font-size: 14px;
-  margin-bottom: 25px;
+  font-size: 12px;
+  margin-bottom: 16px;
   letter-spacing: 1px;
 }
 
 .instructions {
-  font-size: 11px;
-  line-height: 2.2;
+  font-size: 10px;
+  line-height: 1.9;
   color: #cccccc;
-  margin-bottom: 30px;
+  margin-bottom: 16px;
   text-align: left;
 }
 
 .key {
   color: #ffff00;
   background: #222222;
-  padding: 2px 6px;
+  padding: 2px 5px;
   border-radius: 3px;
   border: 1px solid #555555;
   display: inline-block;
 }
 
+/* Выбор сложности */
+.difficulty-section {
+  margin-bottom: 18px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px dashed #555555;
+  padding: 10px 14px;
+}
+
+.difficulty-title {
+  font-size: 10px;
+  color: #ff9900;
+  margin-bottom: 10px;
+  letter-spacing: 1px;
+}
+
+.difficulty-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.diff-btn {
+  font-family: inherit;
+  background: #0d0d0d;
+  color: #ffffff;
+  border: 2px solid #444444;
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 95px;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.diff-btn:hover {
+  border-color: #ffff00;
+  transform: translateY(-2px);
+}
+
+.diff-btn.active {
+  background: #1f1f1f;
+  border-color: #ffff00;
+  box-shadow: 0 0 10px rgba(255, 255, 0, 0.35);
+  transform: scale(1.04);
+}
+
+.diff-tag {
+  font-size: 10px;
+  font-weight: bold;
+}
+
+.diff-tag.easy {
+  color: #00ff66;
+}
+
+.diff-tag.normal {
+  color: #ffff00;
+}
+
+.diff-tag.hard {
+  color: #ff0055;
+}
+
+.diff-sub {
+  font-size: 8px;
+  color: #888888;
+  margin-top: 3px;
+}
+
+.diff-btn.active .diff-sub {
+  color: #cccccc;
+}
+
+.diff-desc {
+  font-size: 9px;
+  color: #aaaaaa;
+  min-height: 20px;
+  line-height: 1.4;
+  margin-top: 4px;
+}
+
 .btn {
   font-family: inherit;
-  font-size: 14px;
+  font-size: 13px;
   background-color: #000000;
   color: #ffffff;
   border: 3px solid #ff9900;
-  padding: 12px 24px;
+  padding: 10px 22px;
   cursor: pointer;
   transition: all 0.15s ease;
   position: relative;

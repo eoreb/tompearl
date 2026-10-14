@@ -5,15 +5,82 @@ class AttackManager {
     this.reset();
   }
 
-  reset() {
+  reset(difficulty = null) {
+    const diff = difficulty || { speedMultiplier: 1.0, cooldownMultiplier: 1.0, healInterval: 40 };
+    this.speedMultiplier = diff.speedMultiplier || 1.0;
+    this.cooldownMultiplier = diff.cooldownMultiplier || 1.0;
+    this.healInterval = diff.healInterval !== undefined ? diff.healInterval : 40;
+    this.healAmount = diff.healAmount || 20;
+    this.healTimer = 0;
+    this.healPickups = [];
+
     this.projectiles = [];
     this.lasers = [];
     this.telegraphs = [];
     this.currentPattern = 0;
-    this.patternCooldown = 0.3;
+    this.patternCooldown = 0.3 * this.cooldownMultiplier;
     this.patternTime = 0;
     this.spiralAngle = 0;
     this.shakeAmount = 0;
+  }
+
+  onPhaseChange(phase) {
+    // Очистить хёртбоксы при смене фазы, чтобы дать игроку передышку под реплику босса
+    this.projectiles = this.projectiles.filter(p => p.type !== 'hurtbox');
+
+    // Если не хардкор — выбрасываем восстанавливающий жемчуг здоровья (+HP)
+    if (this.healAmount > 0) {
+      this.spawnHealPickup(this.healAmount);
+    }
+  }
+
+  spawnHealPickup(amount = 20) {
+    const x = this.arena.x + 40 + Math.random() * (this.arena.width - 80);
+    const y = this.arena.y + 40 + Math.random() * (this.arena.height - 80);
+    this.healPickups.push({
+      x: x,
+      y: y,
+      baseY: y,
+      radius: 12,
+      amount: amount,
+      time: 0,
+      life: 14.0, // висит 14 секунд
+      update: function(dt) {
+        this.time += dt * 3.5;
+        this.y = this.baseY + Math.sin(this.time) * 5;
+        this.life -= dt;
+      },
+      draw: function(ctx) {
+        ctx.save();
+        const pulse = 1.0 + Math.sin(this.time * 2) * 0.2;
+        
+        // Внешнее свечение
+        ctx.shadowColor = '#00ff66';
+        ctx.shadowBlur = 10;
+        ctx.fillStyle = 'rgba(0, 255, 102, 0.35)';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius * pulse * 1.35, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Сердцевинка жемчужины
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius * pulse, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#00ff66';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius * 0.7 * pulse, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Крестик лечения (+)
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(this.x - 2, this.y - 6, 4, 12);
+        ctx.fillRect(this.x - 6, this.y - 2, 12, 4);
+
+        ctx.restore();
+      }
+    });
   }
 
   update(dt, player, boss) {
@@ -25,23 +92,58 @@ class AttackManager {
       this.shakeAmount = Math.max(0, this.shakeAmount - dt * 25);
     }
 
-    // 4 фазы боя (1000 HP)
-    const isPhase2 = boss.hp <= 750 && boss.hp > 500;
-    const isPhase3 = boss.hp <= 500 && boss.hp > 200;
-    const isPhase4 = boss.hp <= 200; // Final Stand
+    // Обновление предметов лечения (Heal Pickups)
+    for (let i = this.healPickups.length - 1; i >= 0; i--) {
+      const hp = this.healPickups[i];
+      hp.update(dt);
 
-    // Динамическая смена 10 паттернов
-    const patternCycleTime = isPhase4 ? 2.8 : isPhase3 ? 3.5 : isPhase2 ? 4.2 : 5.0;
+      // Проверка подбора игроком
+      const dx = player.x - hp.x;
+      const dy = player.y - hp.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < hp.radius + player.size / 2) {
+        player.heal(hp.amount);
+        this.healPickups.splice(i, 1);
+        continue;
+      }
+
+      if (hp.life <= 0) {
+        this.healPickups.splice(i, 1);
+      }
+    }
+
+    // Периодический спавн хилки в легком/нормальном режиме при низком HP
+    if (this.healInterval > 0 && player.hp < player.maxHp * 0.6) {
+      this.healTimer += dt;
+      if (this.healTimer >= this.healInterval) {
+        this.healTimer = 0;
+        if (this.healPickups.length < 2) {
+          this.spawnHealPickup(this.healAmount);
+        }
+      }
+    }
+
+    // 4 фазы боя (пропорционально максимальному HP босса)
+    const p2Threshold = boss.maxHp * 0.75;
+    const p3Threshold = boss.maxHp * 0.50;
+    const p4Threshold = boss.maxHp * 0.20;
+
+    const isPhase2 = boss.hp <= p2Threshold && boss.hp > p3Threshold;
+    const isPhase3 = boss.hp <= p3Threshold && boss.hp > p4Threshold;
+    const isPhase4 = boss.hp <= p4Threshold; // Final Stand
+
+    // Динамическая смена 10 паттернов с учетом сложности
+    const patternCycleTime = (isPhase4 ? 2.8 : isPhase3 ? 3.5 : isPhase2 ? 4.2 : 5.0) * this.cooldownMultiplier;
     if (this.patternTime > patternCycleTime) {
       this.patternTime = 0;
       this.currentPattern = (this.currentPattern + 1) % 10;
-      this.patternCooldown = 0.15;
+      this.patternCooldown = 0.15 * this.cooldownMultiplier;
     }
 
     // Фоновые препятствия в поздних фазах
     const maxBackgroundHurtboxes = isPhase4 ? 2 : (isPhase3 || isPhase2) ? 1 : 0;
     if (this.projectiles.filter(p => p.type === 'hurtbox').length < maxBackgroundHurtboxes) {
-      this.spawnBouncingHurtbox(isPhase4 ? 5.5 : isPhase3 ? 4.8 : 4.0);
+      this.spawnBouncingHurtbox((isPhase4 ? 5.5 : isPhase3 ? 4.8 : 4.0) * this.speedMultiplier);
     }
 
     // Запуск текущего активного паттерна
@@ -132,19 +234,22 @@ class AttackManager {
   runPattern(dt, player, boss, isPhase2, isPhase3, isPhase4) {
     this.patternCooldown -= dt;
 
+    const cdMult = this.cooldownMultiplier || 1.0;
+    const spdMult = this.speedMultiplier || 1.0;
+
     switch (this.currentPattern) {
       case 0:
         // Паттерн 0: Скоростные хёртбоксы
         if (this.projectiles.filter(p => p.type === 'hurtbox').length < (isPhase4 ? 3 : isPhase3 ? 2 : 1)) {
-          this.spawnBouncingHurtbox(isPhase4 ? 5.8 : isPhase3 ? 4.8 : 4.0);
+          this.spawnBouncingHurtbox((isPhase4 ? 5.8 : isPhase3 ? 4.8 : 4.0) * spdMult);
         }
         break;
 
       case 1:
         // Паттерн 1: Падающие тарелки с разрывом на осколки
         if (this.patternCooldown <= 0) {
-          this.spawnFallingPlate(isPhase4 ? 6.8 : isPhase3 ? 5.8 : isPhase2 ? 4.8 : 4.0);
-          this.patternCooldown = isPhase4 ? 0.35 : isPhase3 ? 0.5 : isPhase2 ? 0.65 : 0.85;
+          this.spawnFallingPlate((isPhase4 ? 6.8 : isPhase3 ? 5.8 : isPhase2 ? 4.8 : 4.0) * spdMult);
+          this.patternCooldown = (isPhase4 ? 0.35 : isPhase3 ? 0.5 : isPhase2 ? 0.65 : 0.85) * cdMult;
         }
         break;
 
@@ -152,7 +257,7 @@ class AttackManager {
         // Паттерн 2: Спиральный шквал жемчужин (Danmaku)
         if (this.patternCooldown <= 0) {
           this.spawnSpiralPearlWave(isPhase4 ? 3 : 2);
-          this.patternCooldown = isPhase4 ? 0.12 : isPhase3 ? 0.16 : 0.22;
+          this.patternCooldown = (isPhase4 ? 0.12 : isPhase3 ? 0.16 : 0.22) * cdMult;
         }
         break;
 
@@ -160,7 +265,7 @@ class AttackManager {
         // Паттерн 3: Лазерная сетка (Crossfire Lasers)
         if (this.patternCooldown <= 0) {
           this.spawnLaserGrid(isPhase3 || isPhase4);
-          this.patternCooldown = isPhase4 ? 1.1 : isPhase3 ? 1.4 : 1.9;
+          this.patternCooldown = (isPhase4 ? 1.1 : isPhase3 ? 1.4 : 1.9) * cdMult;
         }
         break;
 
@@ -168,7 +273,7 @@ class AttackManager {
         // Паттерн 4: Самонаводящиеся снаряды
         if (this.patternCooldown <= 0) {
           this.spawnHomingMissile(player, isPhase3 || isPhase4);
-          this.patternCooldown = isPhase4 ? 0.65 : isPhase3 ? 0.85 : 1.25;
+          this.patternCooldown = (isPhase4 ? 0.65 : isPhase3 ? 0.85 : 1.25) * cdMult;
         }
         break;
 
@@ -176,7 +281,7 @@ class AttackManager {
         // Паттерн 5: Мега-удар тарелкой по полу арены
         if (this.patternCooldown <= 0) {
           this.spawnMegaPlateSlam();
-          this.patternCooldown = isPhase4 ? 1.8 : isPhase3 ? 2.2 : 2.8;
+          this.patternCooldown = (isPhase4 ? 1.8 : isPhase3 ? 2.2 : 2.8) * cdMult;
         }
         break;
 
@@ -184,7 +289,7 @@ class AttackManager {
         // Паттерн 6: Таймер-Бомба Тома Перла (Diaper Bomb)
         if (this.patternCooldown <= 0 && this.projectiles.filter(p => p.type === 'bomb').length === 0) {
           this.spawnDiaperBomb();
-          this.patternCooldown = isPhase4 ? 2.5 : 3.2;
+          this.patternCooldown = (isPhase4 ? 2.5 : 3.2) * cdMult;
         }
         break;
 
@@ -192,7 +297,7 @@ class AttackManager {
         // Паттерн 7: Серповидные энергетические волны ауры
         if (this.patternCooldown <= 0) {
           this.spawnAuraSlash();
-          this.patternCooldown = isPhase4 ? 0.55 : isPhase3 ? 0.75 : 1.0;
+          this.patternCooldown = (isPhase4 ? 0.55 : isPhase3 ? 0.75 : 1.0) * cdMult;
         }
         break;
 
@@ -200,7 +305,7 @@ class AttackManager {
         // Паттерн 8: Каскадная лавина тарелок
         if (this.patternCooldown <= 0) {
           this.spawnPlateAvalanche(isPhase4);
-          this.patternCooldown = isPhase4 ? 0.25 : 0.35;
+          this.patternCooldown = (isPhase4 ? 0.25 : 0.35) * cdMult;
         }
         break;
 
@@ -208,7 +313,7 @@ class AttackManager {
         // Паттерн 9: Квадро-бластерный перекрёстный крест
         if (this.patternCooldown <= 0) {
           this.spawnQuadBlaster();
-          this.patternCooldown = isPhase4 ? 1.5 : 2.2;
+          this.patternCooldown = (isPhase4 ? 1.5 : 2.2) * cdMult;
         }
         break;
     }
@@ -665,24 +770,31 @@ class AttackManager {
   checkCollision(p, player) {
     if (player.invulnerableTimer > 0 || player.isDead) return false;
 
+    // Undertale-каноничный компактный хитбокс сердца (внутреннее ядро 5.5px)
+    const core = player.hitboxRadius || 5.5;
+
     if (p.type === 'hurtbox' || p.type === 'aura_slash') {
-      const halfSize = player.size / 2;
       return (
-        player.x + halfSize > p.x &&
-        player.x - halfSize < p.x + p.width &&
-        player.y + halfSize > p.y &&
-        player.y - halfSize < p.y + p.height
+        player.x + core > p.x &&
+        player.x - core < p.x + p.width &&
+        player.y + core > p.y &&
+        player.y - core < p.y + p.height
       );
     } else if (p.radius) {
       const dx = player.x - p.x;
       const dy = player.y - p.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
-      return dist < p.radius + player.size / 2.5;
+      return dist < (p.radius * 0.82) + core;
     }
     return false;
   }
 
   draw(ctx) {
+    // 0. Предметы восстановления здоровья (+HP)
+    for (const hp of this.healPickups) {
+      hp.draw(ctx);
+    }
+
     // 1. Телеграфы Мега-удара
     for (const t of this.telegraphs) {
       if (t.time < t.warningDuration) {
