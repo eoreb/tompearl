@@ -7,17 +7,6 @@ import pygame
 from utils import get_asset_path
 from audio import audio_manager
 
-def dist_to_segment(px, py, x1, y1, x2, y2):
-    dx = x2 - x1
-    dy = y2 - y1
-    l2 = dx * dx + dy * dy
-    if l2 == 0:
-        return math.hypot(px - x1, py - y1)
-    t = max(0.0, min(1.0, ((px - x1) * dx + (py - y1) * dy) / l2))
-    proj_x = x1 + t * dx
-    proj_y = y1 + t * dy
-    return math.hypot(px - proj_x, py - proj_y)
-
 class AttackManager:
     def __init__(self, arena):
         self.arena = arena
@@ -64,16 +53,12 @@ class AttackManager:
 
         # 4. Спрайт Руки-Пушки Омега Флауи (Finger Gun)
         self.finger_gun_surf = pygame.Surface((56, 32), pygame.SRCALPHA)
-        # Рука и ладонь
         pygame.draw.ellipse(self.finger_gun_surf, (210, 180, 150), (4, 8, 30, 18))
         pygame.draw.ellipse(self.finger_gun_surf, (140, 110, 85), (4, 8, 30, 18), 2)
-        # Вытянутый палец-ствол
         pygame.draw.rect(self.finger_gun_surf, (225, 195, 165), (26, 10, 26, 8), border_radius=3)
         pygame.draw.rect(self.finger_gun_surf, (140, 110, 85), (26, 10, 26, 8), 2, border_radius=3)
-        # Взведенный большой палец (курок)
         pygame.draw.polygon(self.finger_gun_surf, (215, 185, 155), [(14, 10), (18, 0), (25, 6), (20, 10)])
         pygame.draw.polygon(self.finger_gun_surf, (140, 110, 85), [(14, 10), (18, 0), (25, 6), (20, 10)], 2)
-        # Ствол дула
         pygame.draw.circle(self.finger_gun_surf, (50, 40, 35), (51, 14), 4)
 
         self.reset()
@@ -90,14 +75,12 @@ class AttackManager:
         # Коллекции атак в стиле Omega Flowey
         self.projectiles = []
         self.reticles = []        # 0. Прицелы и авиаудары бомбами
-        self.vines = []           # 1. Омега-лозы с шипами
         self.mouth_beam = None    # 2. Колоссальный луч изо рта Тома Перла
         self.finger_guns = []     # 3. Руки-пушки с пальцами
         self.dentata_rings = []   # 4. Сжимающиеся кольца зубов/жемчужин
         self.geysers = []         # Гейзеры шоколадной жижи
         self.lasers = []          # Дополнительные квадро-бластеры
         self.telegraphs = []      # Зоны мега-ударов тарелкой
-        self.glitch_banner = None # Баннер [ FILE 1 LOADED ]
 
         self.current_pattern = 0
         self.pattern_cooldown = 0.3 * self.cooldown_multiplier
@@ -106,9 +89,8 @@ class AttackManager:
         self.shake_amount = 0.0
 
     def on_phase_change(self, phase):
-        # Очистить опасные снаряды и лозы при смене фазы, дать игроку передышку
+        # Очистить опасные снаряды при смене фазы, дать игроку передышку
         self.projectiles = [p for p in self.projectiles if p.get('type') == 'tom_head']
-        self.vines = []
         self.reticles = []
         self.finger_guns = []
         self.dentata_rings = []
@@ -197,11 +179,9 @@ class AttackManager:
 
         # Обновление всех элементов боя
         self._update_reticles(dt, player)
-        self._update_vines(dt, player)
         self._update_mouth_beam(dt, player, boss)
         self._update_finger_guns(dt, player)
         self._update_dentata_rings(dt, player)
-        self._update_glitch_banner(dt)
 
         # Обновление снарядов
         for p in self.projectiles[:]:
@@ -285,11 +265,9 @@ class AttackManager:
             r['angle'] += dt * 3.5
 
             if r['state'] == 'tracking':
-                # Плавное следование за позицией души игрока
                 r['x'] += (player.x - r['x']) * 4.8 * dt
                 r['y'] += (player.y - r['y']) * 4.8 * dt
 
-                # Звуковые бипы при слежении
                 r['beep_timer'] -= dt
                 if r['beep_timer'] <= 0:
                     r['beep_timer'] = 0.22
@@ -301,23 +279,19 @@ class AttackManager:
                     audio_manager.play_target_beep()
 
             elif r['state'] == 'locked':
-                # Фиксация и мигание красным перед падением бомбы
                 if r['time'] >= r['lock_duration']:
                     r['state'] = 'dropping'
                     r['bomb_y'] = self.arena['y'] - 40.0
                     r['bomb_speed'] = 650.0 * self.speed_multiplier
 
             elif r['state'] == 'dropping':
-                # Скоростное падение бомбы/тарелки с неба
                 r['bomb_y'] += r['bomb_speed'] * dt
                 if r['bomb_y'] >= r['y']:
-                    # Взрыв в точке прицела
                     self.shake_amount = max(self.shake_amount, 9.0)
                     dist = math.hypot(player.x - r['x'], player.y - r['y'])
                     if dist < 42.0 + player.hitbox_radius:
                         player.take_damage(8)
 
-                    # Радиальный разлет 6 осколков-жемчужин
                     for i in range(6):
                         ang = i * (math.pi * 2.0 / 6.0)
                         spd = 4.2 * self.speed_multiplier
@@ -335,24 +309,6 @@ class AttackManager:
 
                     self.reticles.remove(r)
 
-    def _update_vines(self, dt, player):
-        for v in self.vines[:]:
-            v['time'] += dt
-            if v['state'] == 'warning':
-                if v['time'] >= v['warn_duration']:
-                    v['state'] = 'striking'
-                    v['time'] = 0.0
-                    self.shake_amount = max(self.shake_amount, 5.0)
-                    audio_manager.play_vine_whip()
-            elif v['state'] == 'striking':
-                # Проверка столкновения с шипастой лозой
-                dist = dist_to_segment(player.x, player.y, v['x1'], v['y1'], v['x2'], v['y2'])
-                if dist < (v['thickness'] * 0.45) + player.hitbox_radius:
-                    player.take_damage(v.get('damage', 6))
-
-                if v['time'] >= v['strike_duration']:
-                    self.vines.remove(v)
-
     def _update_mouth_beam(self, dt, player, boss):
         if not self.mouth_beam:
             boss.beam_charging = False
@@ -367,7 +323,6 @@ class AttackManager:
             boss.beam_firing = False
             self.shake_amount = max(self.shake_amount, 2.5)
 
-            # Слежение за позицией X игрока в начале заряда
             if mb['time'] < mb['charge_duration'] * 0.6:
                 mb['x'] += (player.x - mb['x']) * 4.0 * dt
 
@@ -384,7 +339,6 @@ class AttackManager:
             boss.beam_firing = True
             self.shake_amount = max(self.shake_amount, 8.0)
 
-            # Проверка урона колоссального луча
             core = player.hitbox_radius
             hw = mb['width'] / 2.0
             if (player.x + core > mb['x'] - hw and
@@ -400,17 +354,14 @@ class AttackManager:
     def _update_finger_guns(self, dt, player):
         for fg in self.finger_guns[:]:
             fg['time'] += dt
-            # Плавный выезд руки к арене
             if fg['anim_in']:
                 fg['x'] += (fg['target_x'] - fg['x']) * 8.0 * dt
                 fg['y'] += (fg['target_y'] - fg['y']) * 8.0 * dt
                 if abs(fg['x'] - fg['target_x']) < 3.0:
                     fg['anim_in'] = False
 
-            # Прицеливание пальца в душу игрока
             fg['angle'] = math.atan2(player.y - fg['y'], player.x - fg['x'])
 
-            # Стрельба очередью жемчужин
             if fg['shots_left'] > 0:
                 fg['shot_timer'] -= dt
                 if fg['shot_timer'] <= 0:
@@ -418,7 +369,6 @@ class AttackManager:
                     fg['shots_left'] -= 1
                     audio_manager.play_finger_pew()
 
-                    # Спавн скоростной жемчужины из кончика пальца
                     tip_x = fg['x'] + math.cos(fg['angle']) * 32.0
                     tip_y = fg['y'] + math.sin(fg['angle']) * 32.0
                     spd = 5.6 * self.speed_multiplier
@@ -434,7 +384,6 @@ class AttackManager:
                         'is_dead': False
                     })
 
-            # Уход руки обратно за границу экрана
             if fg['shots_left'] <= 0 and fg['time'] > 1.2:
                 fg['x'] += (fg['start_x'] - fg['x']) * 6.0 * dt
                 if abs(fg['x'] - fg['start_x']) < 4.0:
@@ -446,7 +395,6 @@ class AttackManager:
             ring['radius'] -= ring['shrink_speed'] * dt
             ring['current_angle'] += ring['rot_speed'] * dt
 
-            # Проверка столкновения с каждым зубом кольца
             core = player.hitbox_radius
             for ang in ring['teeth_angles']:
                 tooth_ang = ring['current_angle'] + ang
@@ -459,12 +407,6 @@ class AttackManager:
 
             if ring['radius'] <= 16.0:
                 self.dentata_rings.remove(ring)
-
-    def _update_glitch_banner(self, dt):
-        if self.glitch_banner:
-            self.glitch_banner['timer'] -= dt
-            if self.glitch_banner['timer'] <= 0:
-                self.glitch_banner = None
 
     # ==================== ОБНОВЛЕНИЕ СНАРЯДОВ ====================
 
@@ -564,6 +506,13 @@ class AttackManager:
                 p['y'] < self.arena['y'] - 30 or p['y'] > self.arena['y'] + self.arena['height'] + 30):
                 p['is_dead'] = True
 
+        elif ptype == 'aura_slash':
+            p['x'] += p['vx'] * 60.0 * dt
+            if p['vx'] > 0 and p['x'] > self.arena['x'] + self.arena['width'] + 40:
+                p['is_dead'] = True
+            elif p['vx'] < 0 and p['x'] < self.arena['x'] - 40:
+                p['is_dead'] = True
+
         elif ptype == 'bomb':
             p['timer'] -= dt
             p['scale'] = 1.0 + math.sin(p['timer'] * 12.0) * 0.15
@@ -575,7 +524,13 @@ class AttackManager:
             return False
 
         core = player.hitbox_radius
-        if 'radius' in p:
+        ptype = p.get('type')
+        if ptype == 'aura_slash':
+            return (player.x + core > p['x'] and
+                    player.x - core < p['x'] + p['width'] and
+                    player.y + core > p['y'] and
+                    player.y - core < p['y'] + p['height'])
+        elif 'radius' in p:
             dx = player.x - p['x']
             dy = player.y - p['y']
             dist = math.hypot(dx, dy)
@@ -596,10 +551,10 @@ class AttackManager:
                 self.pattern_cooldown = (0.75 if is_p4 else 1.1 if is_p3 else 1.4) * cd_mult
 
         elif self.current_pattern == 1:
-            # 1. Шипастые Омега-Лозы (Thorny Omega Vines)
-            if self.pattern_cooldown <= 0 and len(self.vines) < (4 if is_p4 else 3):
-                self.spawn_thorny_vine(player, is_p4)
-                self.pattern_cooldown = (0.65 if is_p4 else 0.85 if is_p3 else 1.1) * cd_mult
+            # 1. Серповидные волны ауры 5.0 (Aura Slashes)
+            if self.pattern_cooldown <= 0:
+                self.spawn_aura_slash()
+                self.pattern_cooldown = (0.55 if is_p4 else 0.75 if is_p3 else 1.0) * cd_mult
 
         elif self.current_pattern == 2:
             # 2. Колоссальный Луч изо рта Тома Перла (Colossal Mouth Beam)
@@ -626,10 +581,10 @@ class AttackManager:
                 self.pattern_cooldown = (0.09 if is_p4 else 0.12 if is_p3 else 0.16) * cd_mult
 
         elif self.current_pattern == 6:
-            # 6. Глитч-атака [ FILE 1 LOADED ] (SAVE/LOAD)
-            if self.pattern_cooldown <= 0:
-                self.trigger_file_load_glitch(boss, player)
-                self.pattern_cooldown = (2.5 if is_p4 else 3.4) * cd_mult
+            # 6. Особое блюдо: Шоколадные гейзеры (Sludge Geysers)
+            if self.pattern_cooldown <= 0 and len(self.geysers) < (3 if is_p4 else 2):
+                self.spawn_sludge_geyser(is_p3 or is_p4)
+                self.pattern_cooldown = (1.2 if is_p4 else 1.5 if is_p3 else 1.9) * cd_mult
 
         elif self.current_pattern == 7:
             # 7. Вантузная стена Тома Перла (Plunger Barrage Wall)
@@ -670,38 +625,22 @@ class AttackManager:
             'bomb_speed': 600.0
         })
 
-    # 1. Шипастые Омега-Лозы
-    def spawn_thorny_vine(self, player, is_p4=False):
-        ax = self.arena['x']
-        ay = self.arena['y']
-        aw = self.arena['width']
-        ah = self.arena['height']
-
-        mode = random.choice(['diag1', 'diag2', 'horiz', 'vert'])
-        if mode == 'diag1':
-            x1, y1 = ax, ay + random.random() * (ah * 0.4)
-            x2, y2 = ax + aw, ay + ah - random.random() * (ah * 0.4)
-        elif mode == 'diag2':
-            x1, y1 = ax + aw, ay + random.random() * (ah * 0.4)
-            x2, y2 = ax, ay + ah - random.random() * (ah * 0.4)
-        elif mode == 'horiz':
-            y = ay + 20 + random.random() * (ah - 40)
-            x1, y1 = ax, y
-            x2, y2 = ax + aw, y
-        else: # vert
-            x = ax + 20 + random.random() * (aw - 40)
-            x1, y1 = x, ay
-            x2, y2 = x, ay + ah
-
-        self.vines.append({
-            'x1': x1, 'y1': y1,
-            'x2': x2, 'y2': y2,
-            'state': 'warning',
-            'time': 0.0,
-            'warn_duration': (0.55 if is_p4 else 0.75) / self.speed_multiplier,
-            'strike_duration': 0.32,
-            'thickness': 22,
-            'damage': 7
+    # 1. Серповидные волны ауры 5.0
+    def spawn_aura_slash(self):
+        from_left = random.random() > 0.5
+        start_x = self.arena['x'] - 30 if from_left else self.arena['x'] + self.arena['width'] + 30
+        lane_y = self.arena['y'] + 20 + random.random() * (self.arena['height'] - 60)
+        spd = (5.5 if from_left else -5.5) * self.speed_multiplier
+        self.projectiles.append({
+            'type': 'aura_slash',
+            'x': start_x,
+            'y': lane_y,
+            'width': 24,
+            'height': 48,
+            'vx': spd,
+            'damage': 6,
+            'destroy_on_hit': True,
+            'is_dead': False
         })
 
     # 2. Колоссальный Луч изо рта Тома Перла
@@ -746,13 +685,11 @@ class AttackManager:
     def spawn_dentata_ring(self, player):
         center_x = player.x + (random.random() - 0.5) * 30
         center_y = player.y + (random.random() - 0.5) * 30
-        # Ограничение центром арены
         center_x = max(self.arena['x'] + 60, min(self.arena['x'] + self.arena['width'] - 60, center_x))
         center_y = max(self.arena['y'] + 60, min(self.arena['y'] + self.arena['height'] - 60, center_y))
 
         num_teeth = 14
         teeth_angles = []
-        # Пропуск 2-3 зубов для прохода игрока (Escape Gap)
         gap_start = random.randint(0, num_teeth - 1)
         gap_span = 3
         for i in range(num_teeth):
@@ -790,31 +727,21 @@ class AttackManager:
             'is_dead': False
         })
 
-    # 6. Глитч-атака [ FILE 1 LOADED ]
-    def trigger_file_load_glitch(self, boss, player):
-        boss.trigger_glitch(0.7)
-        self.shake_amount = 11.0
-        file_num = 1 if boss.current_phase <= 2 else 2
-        self.glitch_banner = {
-            'text': f"[ FILE {file_num} LOADED ]",
-            'timer': 1.4,
-            'max_timer': 1.4
-        }
-        # Внезапная вспышка 8 глитч-снарядов вокруг игрока с разлетом
-        spd = 3.6 * self.speed_multiplier
-        for i in range(8):
-            ang = i * (math.pi * 2.0 / 8.0)
-            self.projectiles.append({
-                'type': 'pearl',
-                'x': player.x + math.cos(ang) * 95.0,
-                'y': player.y + math.sin(ang) * 95.0,
-                'radius': 7,
-                'vx': math.cos(ang) * spd,
-                'vy': math.sin(ang) * spd,
-                'damage': 5,
-                'destroy_on_hit': True,
-                'is_dead': False
-            })
+    # 6. Шоколадные гейзеры со дна арены
+    def spawn_sludge_geyser(self, is_p3=False):
+        gw = 65 if is_p3 else 75
+        gx = self.arena['x'] + 20 + random.random() * (self.arena['width'] - gw - 40)
+        self.geysers.append({
+            'x': gx,
+            'y': self.arena['y'] + self.arena['height'] - 6,
+            'w': gw,
+            'h': self.arena['height'] - 60,
+            'time': 0.0,
+            'warning_duration': (0.75 if is_p3 else 0.95) / self.speed_multiplier,
+            'erupt_duration': 0.60,
+            'state': 'warning',
+            'damage': 7
+        })
 
     # 7. Вантузная стена Тома Перла
     def spawn_plunger_wall(self):
@@ -826,7 +753,7 @@ class AttackManager:
 
         for i in range(count):
             if i == gap_idx or i == gap_idx + 1:
-                continue # Окно для уворота
+                continue
             sy = self.arena['y'] + 20 + (i + 0.5) * (h / count)
             sx = self.arena['x'] - 20 if from_left else self.arena['x'] + self.arena['width'] + 20
             ang = 0.0 if from_left else math.pi
@@ -985,61 +912,21 @@ class AttackManager:
                     t_rect = txt.get_rect(center=(bx, by1 + bh // 2))
                     screen.blit(txt, t_rect)
             elif mb['state'] == 'firing':
-                # Внешний ореол луча
                 glow_s = pygame.Surface((bw + 28, bh), pygame.SRCALPHA)
                 glow_s.fill((255, 40, 0, 160))
                 screen.blit(glow_s, (bx - (bw + 28) // 2, by1))
-                # Среднее пламя луча
                 mid_s = pygame.Surface((bw, bh), pygame.SRCALPHA)
                 mid_s.fill((255, 215, 0, 230))
                 screen.blit(mid_s, (bx - bw // 2, by1))
-                # Ядро луча
                 core_s = pygame.Surface((max(4, bw - 24), bh), pygame.SRCALPHA)
                 core_s.fill((255, 255, 255, 255))
                 screen.blit(core_s, (bx - (bw - 24) // 2, by1))
-                # Энергетические искры
                 for _ in range(3):
                     spark_y = by1 + random.random() * bh
                     spark_x = bx + (random.random() - 0.5) * (bw + 10)
                     pygame.draw.circle(screen, (255, 255, 255), (int(spark_x), int(spark_y)), random.randint(3, 6))
 
-        # 2. Омега-Лозы с шипами (Thorny Omega Vines)
-        for v in self.vines:
-            p1 = (int(v['x1']), int(v['y1']))
-            p2 = (int(v['x2']), int(v['y2']))
-            if v['state'] == 'warning':
-                alpha = 220 if (int(pygame.time.get_ticks() / 75) % 2 == 0) else 90
-                # Лазерная линия предупреждения
-                line_surf = pygame.Surface((screen.get_width(), screen.get_height()), pygame.SRCALPHA)
-                pygame.draw.line(line_surf, (255, 30, 30, alpha), p1, p2, 4)
-                screen.blit(line_surf, (0, 0))
-            elif v['state'] == 'striking':
-                # Мощный удар лозы
-                pygame.draw.line(screen, (25, 90, 35), p1, p2, v['thickness'])
-                pygame.draw.line(screen, (50, 175, 65), p1, p2, max(2, v['thickness'] - 6))
-                pygame.draw.line(screen, (200, 255, 200), p1, p2, max(2, v['thickness'] - 14))
-                # Шипы вдоль лозы
-                dx = p2[0] - p1[0]
-                dy = p2[1] - p1[1]
-                length = math.hypot(dx, dy)
-                if length > 0:
-                    ux = dx / length
-                    uy = dy / length
-                    nx, ny = -uy, ux # нормаль
-                    step = 28.0
-                    cur = 15.0
-                    while cur < length - 15:
-                        cx = p1[0] + ux * cur
-                        cy = p1[1] + uy * cur
-                        side = 1.0 if int(cur / step) % 2 == 0 else -1.0
-                        th_tip = (int(cx + nx * side * 16.0), int(cy + ny * side * 16.0))
-                        th_b1 = (int(cx - ux * 6.0), int(cy - uy * 6.0))
-                        th_b2 = (int(cx + ux * 6.0), int(cy + uy * 6.0))
-                        pygame.draw.polygon(screen, (255, 215, 0), [th_tip, th_b1, th_b2])
-                        pygame.draw.polygon(screen, (255, 0, 50), [th_tip, th_b1, th_b2], 1)
-                        cur += step
-
-        # 3. Прицелы и Авиаудары (Target Reticles)
+        # 2. Прицелы и Авиаудары (Target Reticles)
         for r in self.reticles:
             rx, ry = int(r['x']), int(r['y'])
             ang = r['angle']
@@ -1047,12 +934,11 @@ class AttackManager:
             if r['state'] == 'tracking':
                 color = (0, 255, 255)
                 rad = int(26 + math.sin(r['time'] * 12.0) * 4)
-            else: # locked or dropping
+            else:
                 flash = (int(pygame.time.get_ticks() / 60) % 2 == 0)
                 color = (255, 0, 0) if flash else (255, 255, 255)
                 rad = 22
 
-            # Вращающийся прицел
             pygame.draw.circle(screen, color, (rx, ry), rad, 2)
             pygame.draw.circle(screen, color, (rx, ry), 4)
             for i in range(4):
@@ -1065,25 +951,23 @@ class AttackManager:
 
             if r['state'] == 'dropping':
                 by = int(r['bomb_y'])
-                # След падающей бомбы
                 pygame.draw.line(screen, (255, 200, 0), (rx, max(by - 30, self.arena['y'])), (rx, by), 4)
                 pygame.draw.circle(screen, (255, 50, 50), (rx, by), 8)
 
-        # 4. Руки-Пушки (Finger Guns)
+        # 3. Руки-Пушки (Finger Guns)
         for fg in self.finger_guns:
             deg = -math.degrees(fg['angle'])
             rot_hand = pygame.transform.rotate(self.finger_gun_surf, deg)
             hand_rect = rot_hand.get_rect(center=(int(fg['x']), int(fg['y'])))
             screen.blit(rot_hand, hand_rect)
 
-            # Вспышка выстрела
             if fg['shots_left'] > 0 and fg['shot_timer'] < 0.05:
                 fx = int(fg['x'] + math.cos(fg['angle']) * 34)
                 fy = int(fg['y'] + math.sin(fg['angle']) * 34)
                 pygame.draw.circle(screen, (255, 255, 0), (fx, fy), 9)
                 pygame.draw.circle(screen, (255, 255, 255), (fx, fy), 4)
 
-        # 5. Сжимающиеся кольца зубов (Dentata)
+        # 4. Сжимающиеся кольца зубов (Dentata)
         for ring in self.dentata_rings:
             cx, cy = int(ring['center_x']), int(ring['center_y'])
             r = ring['radius']
@@ -1092,7 +976,6 @@ class AttackManager:
                 tx = cx + math.cos(tooth_ang) * r
                 ty = cy + math.sin(tooth_ang) * r
 
-                # Зуб направлен в центр кольца
                 inward_ang = tooth_ang + math.pi
                 p_tip = (int(tx + math.cos(inward_ang) * 14.0), int(ty + math.sin(inward_ang) * 14.0))
                 p_b1 = (int(tx + math.cos(inward_ang + 1.8) * 7.0), int(ty + math.sin(inward_ang + 1.8) * 7.0))
@@ -1100,7 +983,7 @@ class AttackManager:
                 pygame.draw.polygon(screen, (245, 245, 245), [p_tip, p_b1, p_b2])
                 pygame.draw.polygon(screen, (255, 40, 40), [p_tip, p_b1, p_b2], 1)
 
-        # 6. Гейзеры жижи ("Special on my plate")
+        # 5. Гейзеры жижи ("Special on my plate")
         for g in self.geysers:
             gx, gy, gw, gh = int(g['x']), int(g['y']), int(g['w']), int(g['h'])
             if g['state'] == 'warning':
@@ -1121,7 +1004,7 @@ class AttackManager:
                     bx = int(gx + gw / 2.0 + math.sin(g['time'] * 22.0 + i * 1.5) * (gw / 3.5))
                     pygame.draw.circle(screen, (190, 120, 50), (bx, by), 5)
 
-        # 7. Лазеры
+        # 6. Лазеры
         for laser in self.lasers:
             if laser['axis'] == 'horizontal':
                 pos_y = int(laser['pos'])
@@ -1152,7 +1035,7 @@ class AttackManager:
                     beam_surf.fill((255, 255, 255, 240))
                     screen.blit(beam_surf, (left_x, ly))
 
-        # 8. Снаряды
+        # 7. Снаряды
         for p in self.projectiles:
             ptype = p.get('type')
             px, py = int(p['x']), int(p['y'])
@@ -1206,6 +1089,13 @@ class AttackManager:
                 pygame.draw.circle(screen, (255, 170, 30), (px, py), max(1, int(r * 0.6)))
                 pygame.draw.circle(screen, (255, 255, 255), (px, py), max(1, int(r * 0.3)))
 
+            elif ptype == 'aura_slash':
+                pw, ph = p['width'], p['height']
+                slash_surf = pygame.Surface((pw, ph), pygame.SRCALPHA)
+                pygame.draw.ellipse(slash_surf, (255, 0, 85, 220), (0, 0, pw, ph))
+                pygame.draw.ellipse(slash_surf, (255, 255, 255, 255), (2, 2, pw - 4, ph - 4))
+                screen.blit(slash_surf, (px, py))
+
             elif ptype == 'bomb':
                 r = int(p['radius'] * p['scale'])
                 pygame.draw.circle(screen, (255, 255, 255), (px, py), r)
@@ -1216,22 +1106,3 @@ class AttackManager:
                     t_sec = font.render(str(sec), True, (255, 255, 255))
                     s_rect = t_sec.get_rect(center=(px, py))
                     screen.blit(t_sec, s_rect)
-
-        # 9. Баннер [ FILE 1 LOADED ] (SAVE/LOAD)
-        if self.glitch_banner and font:
-            text_str = self.glitch_banner['text']
-            bx = self.arena['x'] + self.arena['width'] // 2
-            by = self.arena['y'] - 24
-            # Эффект хроматической аберрации текста
-            cyan_txt = font.render(text_str, True, (0, 255, 255))
-            red_txt = font.render(text_str, True, (255, 0, 0))
-            white_txt = font.render(text_str, True, (255, 255, 255))
-
-            offset = int(math.sin(self.glitch_banner['timer'] * 35.0) * 4)
-            c_rect = cyan_txt.get_rect(center=(bx + offset - 2, by))
-            r_rect = red_txt.get_rect(center=(bx - offset + 2, by))
-            w_rect = white_txt.get_rect(center=(bx, by))
-
-            screen.blit(cyan_txt, c_rect)
-            screen.blit(red_txt, r_rect)
-            screen.blit(white_txt, w_rect)

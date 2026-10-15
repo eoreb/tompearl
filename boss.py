@@ -89,7 +89,7 @@ class Boss:
                 attack_manager.on_phase_change(2)
         elif self.current_phase == 2 and self.hp <= p3_th:
             self.current_phase = 3
-            self.speech_bubble = {'text': "FILE 2 LOADED!\nYou cannot escape the plate!", 'timer': 3.4}
+            self.speech_bubble = {'text': "Aura 5.0 kicking in!\nFeel the phonk!", 'timer': 3.4}
             self.hit_flash_timer = 0.30
             self.trigger_glitch(0.6)
             if attack_manager:
@@ -200,20 +200,6 @@ class Boss:
         draw_x = int(self.x - self.width / 2.0)
         draw_y = int(self.y - self.height / 2.0)
 
-        # 0. Омега-лозы / кабели на заднем плане (стиль Photoshop Flowey)
-        if not self.is_defeated:
-            left_attach = (draw_x + 30, draw_y + 80)
-            right_attach = (draw_x + self.width - 30, draw_y + 80)
-            wave = math.sin(self.time * 3.5) * 10.0
-            # Левая органическая труба с шипами
-            pygame.draw.line(screen, (30, 85, 40), (0, 0), (left_attach[0] - 40, left_attach[1] - 50 + wave), 8)
-            pygame.draw.line(screen, (45, 130, 55), (left_attach[0] - 40, left_attach[1] - 50 + wave), left_attach, 6)
-            # Правая органическая труба с шипами
-            pygame.draw.line(screen, (30, 85, 40), (self.canvas_width, 0), (right_attach[0] + 40, right_attach[1] - 50 - wave), 8)
-            pygame.draw.line(screen, (45, 130, 55), (right_attach[0] + 40, right_attach[1] - 50 - wave), right_attach, 6)
-            # Шипы
-            pygame.draw.polygon(screen, (255, 215, 0), [(left_attach[0] - 45, left_attach[1] - 55 + wave), (left_attach[0] - 65, left_attach[1] - 70 + wave), (left_attach[0] - 38, left_attach[1] - 65 + wave)])
-            pygame.draw.polygon(screen, (255, 215, 0), [(right_attach[0] + 45, right_attach[1] - 55 - wave), (right_attach[0] + 65, right_attach[1] - 70 - wave), (right_attach[0] + 38, right_attach[1] - 65 - wave)])
 
         # Фаза 4: Неоновое пульсирующее свечение ауры
         if self.current_phase == 4 and not self.is_defeated:
