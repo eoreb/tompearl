@@ -35,6 +35,14 @@ class AudioManager:
         self.snd_heal = self._synth_arpeggio([523.25, 659.25, 783.99, 1046.5], note_duration=0.05, volume=0.15)
         self.snd_victory = self._synth_arpeggio([330, 392, 493, 587, 659], note_duration=0.10, volume=0.18)
 
+        # Омега-звуки в стиле Omega Flowey
+        self.snd_target_beep = self._synth_square(frequency=920, duration=0.05, volume=0.15)
+        self.snd_beam_charge = self._synth_chirp(f_start=150, f_end=850, duration=0.45, wave_type='saw', volume=0.25)
+        self.snd_beam_fire = self._synth_noise(duration=0.55, volume=0.38)
+        self.snd_vine_whip = self._synth_chirp(f_start=680, f_end=120, duration=0.12, wave_type='triangle', volume=0.22)
+        self.snd_glitch = self._synth_noise(duration=0.16, volume=0.35)
+        self.snd_finger_pew = self._synth_chirp(f_start=1150, f_end=320, duration=0.08, wave_type='saw', volume=0.16)
+
     def _synth_square(self, frequency=280, duration=0.04, volume=0.1):
         sr = 44100
         n = int(sr * duration)
@@ -190,5 +198,29 @@ class AudioManager:
     def play_victory_sound(self):
         if not self.is_muted and self.snd_victory:
             self.snd_victory.play()
+
+    def play_target_beep(self):
+        if not self.is_muted and self.snd_target_beep:
+            self.snd_target_beep.play()
+
+    def play_beam_charge(self):
+        if not self.is_muted and self.snd_beam_charge:
+            self.snd_beam_charge.play()
+
+    def play_beam_fire(self):
+        if not self.is_muted and self.snd_beam_fire:
+            self.snd_beam_fire.play()
+
+    def play_vine_whip(self):
+        if not self.is_muted and self.snd_vine_whip:
+            self.snd_vine_whip.play()
+
+    def play_glitch(self):
+        if not self.is_muted and self.snd_glitch:
+            self.snd_glitch.play()
+
+    def play_finger_pew(self):
+        if not self.is_muted and self.snd_finger_pew:
+            self.snd_finger_pew.play()
 
 audio_manager = AudioManager()

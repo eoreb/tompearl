@@ -47,6 +47,10 @@ class Boss:
         self.shake_offset_x = 0.0
         self.shake_offset_y = 0.0
 
+        self.glitch_timer = 0.0
+        self.beam_charging = False
+        self.beam_firing = False
+
         self.damage_popups = []
         self.particles = []
         self.is_defeated = False
@@ -54,6 +58,9 @@ class Boss:
 
     def update(self, dt, attack_manager=None):
         self.time += dt
+
+        if self.glitch_timer > 0:
+            self.glitch_timer -= dt
 
         if self.speech_bubble:
             self.speech_bubble['timer'] -= dt
@@ -69,27 +76,29 @@ class Boss:
             self._update_particles(dt)
             return
 
-        # Проверка смены фаз
+        # Проверка смены фаз (Omega Flowey / Tom Pearl dialogue)
         p2_th = self.max_hp * 0.75
         p3_th = self.max_hp * 0.50
         p4_th = self.max_hp * 0.20
 
         if self.current_phase == 1 and self.hp <= p2_th:
             self.current_phase = 2
-            self.speech_bubble = {'text': "Is that all?\nTaste this plate!", 'timer': 3.2}
+            self.speech_bubble = {'text': "You think you can win?\nTASTE MY OMEGA AURA!", 'timer': 3.2}
             self.hit_flash_timer = 0.25
             if attack_manager:
                 attack_manager.on_phase_change(2)
         elif self.current_phase == 2 and self.hp <= p3_th:
             self.current_phase = 3
-            self.speech_bubble = {'text': "Aura 5.0 kicking in!\nFeel the phonk!", 'timer': 3.2}
+            self.speech_bubble = {'text': "FILE 2 LOADED!\nYou cannot escape the plate!", 'timer': 3.4}
             self.hit_flash_timer = 0.30
+            self.trigger_glitch(0.6)
             if attack_manager:
                 attack_manager.on_phase_change(3)
         elif self.current_phase == 3 and self.hp <= p4_th:
             self.current_phase = 4
-            self.speech_bubble = {'text': "IMPOSSIBLE!\nMY FINAL PLATE!", 'timer': 3.6}
+            self.speech_bubble = {'text': "I AM THE GOD OF THIS REALM!\nAURA OVERLOAD 5.0!", 'timer': 3.8}
             self.hit_flash_timer = 0.40
+            self.trigger_glitch(0.8)
             if attack_manager:
                 attack_manager.on_phase_change(4)
 
@@ -183,9 +192,28 @@ class Boss:
         audio_manager.stop_battle()
         audio_manager.play_victory_sound()
 
+    def trigger_glitch(self, duration=0.6):
+        self.glitch_timer = duration
+        audio_manager.play_glitch()
+
     def draw(self, screen, font=None):
         draw_x = int(self.x - self.width / 2.0)
         draw_y = int(self.y - self.height / 2.0)
+
+        # 0. Омега-лозы / кабели на заднем плане (стиль Photoshop Flowey)
+        if not self.is_defeated:
+            left_attach = (draw_x + 30, draw_y + 80)
+            right_attach = (draw_x + self.width - 30, draw_y + 80)
+            wave = math.sin(self.time * 3.5) * 10.0
+            # Левая органическая труба с шипами
+            pygame.draw.line(screen, (30, 85, 40), (0, 0), (left_attach[0] - 40, left_attach[1] - 50 + wave), 8)
+            pygame.draw.line(screen, (45, 130, 55), (left_attach[0] - 40, left_attach[1] - 50 + wave), left_attach, 6)
+            # Правая органическая труба с шипами
+            pygame.draw.line(screen, (30, 85, 40), (self.canvas_width, 0), (right_attach[0] + 40, right_attach[1] - 50 - wave), 8)
+            pygame.draw.line(screen, (45, 130, 55), (right_attach[0] + 40, right_attach[1] - 50 - wave), right_attach, 6)
+            # Шипы
+            pygame.draw.polygon(screen, (255, 215, 0), [(left_attach[0] - 45, left_attach[1] - 55 + wave), (left_attach[0] - 65, left_attach[1] - 70 + wave), (left_attach[0] - 38, left_attach[1] - 65 + wave)])
+            pygame.draw.polygon(screen, (255, 215, 0), [(right_attach[0] + 45, right_attach[1] - 55 - wave), (right_attach[0] + 65, right_attach[1] - 70 - wave), (right_attach[0] + 38, right_attach[1] - 65 - wave)])
 
         # Фаза 4: Неоновое пульсирующее свечение ауры
         if self.current_phase == 4 and not self.is_defeated:
@@ -196,7 +224,16 @@ class Boss:
 
         # Отрисовка спрайта Тома Перла
         if self.image:
-            if self.hit_flash_timer > 0:
+            if self.glitch_timer > 0:
+                # Глитч-эффект хроматической аберрации (SAVE/LOAD)
+                offset = int((random.random() - 0.5) * 16)
+                c_surf = self.image.copy()
+                c_surf.fill((0, 255, 255, 150), special_flags=pygame.BLEND_RGBA_MULT)
+                r_surf = self.image.copy()
+                r_surf.fill((255, 0, 0, 150), special_flags=pygame.BLEND_RGBA_MULT)
+                screen.blit(c_surf, (draw_x + offset, draw_y))
+                screen.blit(r_surf, (draw_x - offset, draw_y))
+            elif self.hit_flash_timer > 0:
                 # Белая вспышка урона
                 flash_surf = self.image.copy()
                 flash_surf.fill((255, 255, 255, 180), special_flags=pygame.BLEND_RGB_ADD)
@@ -204,8 +241,31 @@ class Boss:
             else:
                 screen.blit(self.image, (draw_x, draw_y))
         else:
-            # Заглушка, если файл спрайта не найден
             pygame.draw.rect(screen, (100, 80, 60), (draw_x, draw_y, self.width, self.height))
+
+        # Эффект пылающих глаз и заряда изо рта Омега Тома
+        if (self.beam_charging or self.beam_firing) and not self.is_defeated:
+            eye_y = draw_y + int(self.height * 0.38)
+            left_eye = (draw_x + int(self.width * 0.38), eye_y)
+            right_eye = (draw_x + int(self.width * 0.62), eye_y)
+            pulse = int(7 + math.sin(self.time * 25.0) * 4)
+            pygame.draw.circle(screen, (255, 0, 0), left_eye, pulse)
+            pygame.draw.circle(screen, (255, 255, 200), left_eye, pulse // 2)
+            pygame.draw.circle(screen, (255, 0, 0), right_eye, pulse)
+            pygame.draw.circle(screen, (255, 255, 200), right_eye, pulse // 2)
+
+            mouth_pos = (int(self.x), draw_y + int(self.height * 0.72))
+            if self.beam_charging:
+                for i in range(5):
+                    spk_a = self.time * 14.0 + i * math.pi / 2.5
+                    spk_d = 26.0 - (self.time * 45.0 + i * 5) % 22.0
+                    spx = mouth_pos[0] + math.cos(spk_a) * spk_d
+                    spy = mouth_pos[1] + math.sin(spk_a) * spk_d
+                    pygame.draw.line(screen, (255, 255, 0), (int(spx), int(spy)), mouth_pos, 2)
+            else:
+                blast_r = int(18 + math.sin(self.time * 30.0) * 6)
+                pygame.draw.circle(screen, (255, 255, 255), mouth_pos, blast_r)
+                pygame.draw.circle(screen, (255, 50, 50), mouth_pos, blast_r + 6, 3)
 
         # Рамка портрета
         border_color = (255, 0, 85) if self.current_phase == 4 else (255, 255, 255)
